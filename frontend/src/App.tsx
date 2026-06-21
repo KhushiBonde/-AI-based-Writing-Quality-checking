@@ -1,0 +1,297 @@
+import { useState, useEffect } from 'react';
+import './App.css';
+
+interface MetricBreakdown {
+  word_count: number;
+  sentence_count: number;
+  avg_sentence_length: number;
+  flesch_reading_ease: number;
+  vocabulary_diversity: number;
+}
+
+interface FeedbackItem {
+  type: string;
+  impact: 'positive' | 'neutral' | 'negative';
+  message: string;
+}
+
+interface EvaluationResult {
+  score: number;
+  metrics: MetricBreakdown;
+  feedback: FeedbackItem[];
+}
+
+export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    // Detect system preference or default to light
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  const [essayText, setEssayText] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Apply theme to document element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  // Toggle theme
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  // Live client-side stats
+  const cleanWords = essayText.trim().split(/\s+/).filter(w => w.length > 0);
+  const liveWordCount = cleanWords.length;
+  const liveCharCount = essayText.length;
+
+  // Predict best maximum scale for visual circular progress
+  const getScoreScaleInfo = (score: number) => {
+    if (score <= 1.0) return { max: 1.0, label: '/ 1.0' };
+    if (score <= 6.0) return { max: 6.0, label: '/ 6.0' };
+    if (score <= 10.0) return { max: 10.0, label: '/ 10.0' };
+    if (score <= 12.0) return { max: 12.0, label: '/ 12.0' };
+    if (score <= 60.0) return { max: 60.0, label: '/ 60.0' };
+    return { max: 100.0, label: '/ 100.0' };
+  };
+
+  const scoreScale = result ? getScoreScaleInfo(result.score) : { max: 10.0, label: '/ 10.0' };
+  const scorePercent = result ? Math.min(100, Math.max(0, (result.score / scoreScale.max) * 100)) : 0;
+  
+  // SVG circular properties
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius; // ~251.2
+  const strokeDashoffset = circumference - (scorePercent / 100) * circumference;
+
+  // Call API
+  const handleEvaluate = async () => {
+    if (!essayText.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: essayText }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'An error occurred during evaluation.');
+      }
+
+      const data: EvaluationResult = await response.json();
+      setResult(data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to connect to the evaluation server.';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="app-container">
+      {/* Header */}
+      <header className="app-header">
+        <div className="logo-container">
+          <span className="logo-icon">✎</span>
+          <h1 className="app-title">LexiGrade</h1>
+        </div>
+        <button 
+          onClick={toggleTheme} 
+          className="theme-toggle" 
+          aria-label="Toggle Theme"
+          title="Toggle light/dark mode"
+        >
+          {theme === 'light' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          )}
+        </button>
+      </header>
+
+      {/* Main Grid */}
+      <main className="dashboard-grid">
+        {/* Left Section: Essay Writer */}
+        <section className="glass-card editor-section">
+          <h2 className="section-title">Essay Input</h2>
+          <div className="textarea-container">
+            <textarea
+              className="essay-textarea"
+              placeholder="Paste or write your essay here (minimum 10 words for a meaningful evaluation)..."
+              value={essayText}
+              onChange={(e) => setEssayText(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+          <div className="editor-footer">
+            <div className="word-count-badge">
+              {liveWordCount} words &bull; {liveCharCount} chars
+            </div>
+            <button
+              onClick={handleEvaluate}
+              disabled={isLoading || liveWordCount < 5}
+              className="evaluate-button"
+            >
+              {isLoading ? (
+                <>
+                  <div className="spinner" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <span>Evaluate Writing</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 2 11 13 22 22" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+
+        {/* Right Section: Results Display */}
+        <section className="glass-card results-section">
+          <h2 className="section-title">Evaluation Results</h2>
+
+          {/* Error Message */}
+          {error && (
+            <div className="insight-item negative" style={{ marginTop: '10px' }}>
+              <span className="insight-icon">✕</span>
+              <div>
+                <strong>Error:</strong> {error}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !result && !error && (
+            <div className="empty-state">
+              <span className="empty-icon">📝</span>
+              <p className="empty-text">
+                Your writing feedback will appear here. Write or paste your essay on the left and click <strong>Evaluate Writing</strong> to begin.
+              </p>
+            </div>
+          )}
+
+          {/* Loading Skeleton */}
+          {isLoading && (
+            <div className="skeleton-loader">
+              <div className="skeleton-block skeleton-score" />
+              <div className="skeleton-grid">
+                <div className="skeleton-block skeleton-metric" />
+                <div className="skeleton-block skeleton-metric" />
+                <div className="skeleton-block skeleton-metric" />
+                <div className="skeleton-block skeleton-metric" />
+              </div>
+              <div className="skeleton-block skeleton-insights" />
+            </div>
+          )}
+
+          {/* Results Render */}
+          {!isLoading && result && (
+            <>
+              {/* Overall Score */}
+              <div className="score-card">
+                <div className="score-circle-container">
+                  <svg className="score-circle-svg">
+                    <circle className="score-circle-bg" cx="45" cy="45" r={radius} />
+                    <circle 
+                      className="score-circle-bar" 
+                      cx="45" 
+                      cy="45" 
+                      r={radius}
+                      style={{
+                        strokeDashoffset: strokeDashoffset
+                      }}
+                    />
+                  </svg>
+                  <span className="score-value">{result.score.toFixed(1)}</span>
+                </div>
+                <div className="score-info">
+                  <span className="score-label">Estimated Score</span>
+                  <span className="score-description">
+                    Grade Scale: {scoreScale.max} max
+                  </span>
+                </div>
+              </div>
+
+              {/* Detailed Metrics */}
+              <div className="metrics-grid">
+                <div className="metric-card">
+                  <span className="metric-header">Word Count</span>
+                  <span className="metric-value">{result.metrics.word_count}</span>
+                </div>
+                <div className="metric-card">
+                  <span className="metric-header">Sentences</span>
+                  <span className="metric-value">{result.metrics.sentence_count}</span>
+                </div>
+                <div className="metric-card">
+                  <span className="metric-header">Avg Sentence Length</span>
+                  <span className="metric-value">{result.metrics.avg_sentence_length.toFixed(1)} <span style={{fontSize: '12px', fontWeight: 'normal'}}>words</span></span>
+                </div>
+                <div className="metric-card" title="Flesch Reading Ease score">
+                  <span className="metric-header">Readability Ease</span>
+                  <span className="metric-value">{result.metrics.flesch_reading_ease.toFixed(1)}</span>
+                </div>
+                <div className="metric-card" style={{gridColumn: 'span 2'}} title="Vocabulary Diversity (Type-Token Ratio)">
+                  <span className="metric-header">Vocabulary Diversity</span>
+                  <span className="metric-value">{(result.metrics.vocabulary_diversity * 100).toFixed(1)}% <span style={{fontSize: '12px', fontWeight: 'normal'}}>unique words</span></span>
+                </div>
+              </div>
+
+              {/* Insights */}
+              <div className="insights-card">
+                <h3 className="section-title" style={{ fontSize: '15px' }}>Linguistic Insights</h3>
+                <div className="insights-list">
+                  {result.feedback.length === 0 ? (
+                    <div className="insight-item positive">
+                      <span className="insight-icon">✓</span>
+                      <div>No warnings or negative issues detected. The writing structure looks solid!</div>
+                    </div>
+                  ) : (
+                    result.feedback.map((item, index) => (
+                      <div key={index} className={`insight-item ${item.impact}`}>
+                        <span className="insight-icon">
+                          {item.impact === 'positive' && '✓'}
+                          {item.impact === 'neutral' && 'ℹ'}
+                          {item.impact === 'negative' && '⚠'}
+                        </span>
+                        <div>{item.message}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
