@@ -6,6 +6,6 @@
     "frontend"
   ],
   "scripts": {
-    "build": "npm run build -w frontend"
+    "build": "npm run build -w frontend && pwd && ls -la && ls -la dist"
   }
 }
