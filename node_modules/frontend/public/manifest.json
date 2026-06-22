@@ -1,0 +1,15 @@
+{
+  "short_name": "LexiGrade",
+  "name": "AI Writing Quality Checker",
+  "start_url": "/",
+  "background_color": "#f8fafc",
+  "display": "standalone",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
