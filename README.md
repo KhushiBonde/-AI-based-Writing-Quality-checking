@@ -15,7 +15,7 @@ An intelligent machine learning system that automatically evaluates writing qual
 
 # Live Deployment
 
-[Live Demo](https://ai-based-writing-quality-checking-f.vercel.app/)
+[[Live Demo](https://ai-based-writing-quality-checking-f.vercel.app/)]
 
 ---
 
