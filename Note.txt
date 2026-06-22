@@ -1,0 +1,90 @@
+AI-BASED WRITING QUALITY CHECKER
+HOW TO RUN PROJECT
+
+=========================================================
+
+1. CLONE REPOSITORY
+   =========================================================
+
+git clone https://github.com/KhushiBonde/-AI-based-Writing-Quality-checking.git
+
+cd AI-based-Writing-Quality-checking
+
+=========================================================
+2. CREATE VIRTUAL ENVIRONMENT
+=============================
+
+python -m venv venv
+
+Windows:
+
+venv\Scripts\activate
+
+Mac/Linux:
+
+source venv/bin/activate
+
+=========================================================
+3. INSTALL DEPENDENCIES
+=======================
+
+pip install -r requirements.txt
+
+=========================================================
+4. VERIFY PROJECT FILES
+=======================
+
+app.py
+models/
+data/
+utils/
+requirements.txt
+
+=========================================================
+5. RUN APPLICATION
+==================
+
+python app.py
+
+=========================================================
+6. HOW SYSTEM WORKS
+===================
+
+Step 1 → User enters writing text
+
+Step 2 → Text preprocessing starts
+
+Step 3 → NLP feature extraction
+
+Step 4 → Model loads trained data
+
+Step 5 → Prediction generated
+
+Step 6 → Writing quality score displayed
+
+=========================================================
+7. TROUBLESHOOTING
+==================
+
+If dependency error:
+
+pip install -r requirements.txt
+
+If model loading error:
+
+Check writing_quality_model.pkl inside models folder
+
+=========================================================
+TECH STACK
+==========
+
+Python
+Machine Learning
+Natural Language Processing
+Scikit-learn
+Pandas
+NumPy
+
+=========================================================
+END
+===
